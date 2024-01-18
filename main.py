@@ -260,6 +260,8 @@ class Redan():
 
 
 if __name__ == '__main__':
+    img_path = Path('images')
+    img_path.mkdir(exist_ok=True)
     rdv = Redan()
     if rdv.state > -1:
         if rdv.get_products() > 0:
