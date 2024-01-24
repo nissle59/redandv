@@ -189,6 +189,7 @@ class Redan():
             return -1
 
     def make_csvs(self, msk='msk.csv', chab='chab.csv'):
+        csv.register_dialect('my',quotechar='"', delimiter=';', skipinitialspace=True)
         mskf = open(msk, mode="w", encoding='utf-8-sig')
         chabf = open(chab, mode="w", encoding='utf-8-sig')
         names = [
@@ -206,8 +207,9 @@ class Redan():
             'Товар в пути',
             'Изображение'
         ]
-        msk_writer = csv.DictWriter(mskf, delimiter=";", lineterminator="\r", fieldnames=names)
-        chab_writer = csv.DictWriter(chabf, delimiter=";", lineterminator="\r", fieldnames=names)
+        msk_writer = csv.DictWriter(mskf, dialect='my', fieldnames=names, quoting=csv.QUOTE_NONNUMERIC)
+        chab_writer = csv.DictWriter(chabf, dialect='my', fieldnames=names, quoting=csv.QUOTE_NONNUMERIC)
+
         msk_writer.writeheader()
         chab_writer.writeheader()
         current = 0
@@ -215,8 +217,8 @@ class Redan():
         for product in self.products:
             current += 1
             print(f'Processing {current} product of {total}...')
-            msk_count = '0.000'
-            chab_count = '0.000'
+            msk_count = 0.0
+            chab_count = 0.0
 
             if product.get('image', None):
                 img = product.get('image').get('url')
@@ -224,24 +226,27 @@ class Redan():
                 img = ''
             if product.get('image', None):
                 try:
-                    r = requests.get(product.get('image').get('url'))
                     fn = images_folder / product.get('image').get('filename')
-                    with open(fn, 'wb') as f:
-                        f.write(r.content)
-                    img = f'/parser/images/{fn}'
-                    print(f'Loaded image {img}')
+                    if not(fn.exists()):
+                        r = requests.get(product.get('image').get('url'))
+                        with open(fn, 'wb') as f:
+                            f.write(r.content)
+                        print(f'Loaded image {img}')
+                    else:
+                        print(f'Image is already loaded {img}')
+                        img = f'/parser/images/{fn}'
                 except:
                     img = ''
 
             try:
                 for stock in product.get('stocks'):
                     if stock.get('id') == 1:
-                        chab_count = stock.get('count')
+                        chab_count = float(stock.get('count'))
                     elif stock.get('id') == 3:
-                        msk_count = stock.get('count')
+                        msk_count = float(stock.get('count'))
             except:
-                msk_count = '0.000'
-                chab_count = '0.000'
+                msk_count = 0.0
+                chab_count = 0.0
 
             price = '0'
 
@@ -257,8 +262,8 @@ class Redan():
                 'Количество(5)': msk_count,
                 'Цена(6)': price,
                 'Распродажа': '',
-                'Мин. заказ': '1',
-                'Срок поставки (Рабочие дни)': '0',
+                'Мин. заказ': 1,
+                'Срок поставки (Рабочие дни)': 0,
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
@@ -272,8 +277,8 @@ class Redan():
                 'Количество(5)': chab_count,
                 'Цена(6)': price,
                 'Распродажа': '',
-                'Мин. заказ': '1',
-                'Срок поставки (Рабочие дни)': '0',
+                'Мин. заказ': 1,
+                'Срок поставки (Рабочие дни)': 0,
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
