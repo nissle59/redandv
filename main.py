@@ -1,7 +1,10 @@
 import csv
 import requests
+from pathlib import *
 
 cats_handler = open('categories.txt', 'w')
+images_folder = Path('images')
+images_folder.mkdir(exist_ok=True)
 
 
 def pretty(dd, key_f, indent=0):
@@ -162,7 +165,7 @@ class Redan():
             for prod in js:
                 if prod.get('category_id') in self.ctl:
                     if prod.get('id') in self.content_ids:
-                        prod['image'] = self.content.get(prod.get('id')).get('url')
+                        prod['image'] = self.content.get(prod.get('id'))
                     self.products.append(prod)
             return 1
         except:
@@ -215,6 +218,21 @@ class Redan():
             msk_count = '0.000'
             chab_count = '0.000'
 
+            if product.get('image', None):
+                img = product.get('image').get('url')
+            else:
+                img = ''
+            if product.get('image', None):
+                try:
+                    r = requests.get(product.get('image').get('url'))
+                    fn = images_folder / product.get('image').get('filename')
+                    with open(fn, 'wb') as f:
+                        f.write(r.content)
+                    img = f'/parser/images/{fn}'
+                    print(f'Loaded image {img}')
+                except:
+                    img = ''
+
             try:
                 for stock in product.get('stocks'):
                     if stock.get('id') == 1:
@@ -244,7 +262,7 @@ class Redan():
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
-                'Изображение': product.get('image', '')
+                'Изображение': img
             })
             chab_writer.writerow({
                 'Артикул(1)': product.get('sku'),
@@ -259,7 +277,7 @@ class Redan():
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
-                'Изображение': product.get('image', '')
+                'Изображение': img
             })
         mskf.close()
         chabf.close()
