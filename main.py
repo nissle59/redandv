@@ -164,6 +164,26 @@ class Redan():
         except:
             return -1
 
+    def check_img(self,url):
+        try:
+            r = requests.get(url)
+            b = r.content
+            try:
+                err = r.json()['error']
+                print(f'for {product.get("id")} : {err}')
+                img = ''
+                return img
+            except:
+                pass
+            # print(b)
+            if len(b) > 0:
+                if b[:6] != b'<html>':
+                    print(f'Load image for {product["id"]}')
+                    img = url
+        except Exception as e:
+            img = ''
+        return url
+
     def make_csvs(self, msk='msk.csv', chab='chab.csv'):
         mskf = open(msk, mode="w", encoding='utf-8-sig')
         chabf = open(chab, mode="w", encoding='utf-8-sig')
@@ -179,13 +199,18 @@ class Redan():
             'Срок поставки (Рабочие дни)',
             'Уцененный товар',
             'Авиадоставка',
-            'Товар в пути'
+            'Товар в пути',
+            'Изображение'
         ]
         msk_writer = csv.DictWriter(mskf, delimiter=";", lineterminator="\r", fieldnames=names)
         chab_writer = csv.DictWriter(chabf, delimiter=";", lineterminator="\r", fieldnames=names)
         msk_writer.writeheader()
         chab_writer.writeheader()
+        current = 0
+        total = len(self.products)
         for product in self.products:
+            current += 1
+            print(f'Processing {current} product of {total}...')
             msk_count = '0.000'
             chab_count = '0.000'
 
@@ -205,6 +230,8 @@ class Redan():
                 if pr.get('type') == 'purchase':
                     price = pr['price']
 
+            img = self.check_img(f'{self.base_url}/image/?op=item&id={product.get("id")}&key={self.token}')
+
             msk_writer.writerow({
                 'Артикул(1)': product.get('sku'),
                 'Наименование(2)': product.get('name'),
@@ -217,7 +244,8 @@ class Redan():
                 'Срок поставки (Рабочие дни)': '0',
                 'Уцененный товар': '',
                 'Авиадоставка': '',
-                'Товар в пути': ''
+                'Товар в пути': '',
+                'Изображение':img
             })
             chab_writer.writerow({
                 'Артикул(1)': product.get('sku'),
@@ -231,7 +259,8 @@ class Redan():
                 'Срок поставки (Рабочие дни)': '0',
                 'Уцененный товар': '',
                 'Авиадоставка': '',
-                'Товар в пути': ''
+                'Товар в пути': '',
+                'Изображение':img
             })
         mskf.close()
         chabf.close()
@@ -260,8 +289,8 @@ class Redan():
 
 
 if __name__ == '__main__':
-    img_path = Path('images')
-    img_path.mkdir(exist_ok=True)
+    # img_path = Path('images')
+    # img_path.mkdir(exist_ok=True)
     rdv = Redan()
     if rdv.state > -1:
         if rdv.get_products() > 0:
@@ -271,4 +300,4 @@ if __name__ == '__main__':
             newlist = list(set(skulist))
             print(f'{len(skulist)} -> {len(newlist)}')
             rdv.make_csvs()
-            rdv.get_images()
+            # rdv.get_images()
