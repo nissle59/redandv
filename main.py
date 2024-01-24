@@ -1,9 +1,5 @@
-import json
-
-import requests
 import csv
-from pathlib import Path
-import threading
+import requests
 
 cats_handler = open('categories.txt', 'w')
 
@@ -96,8 +92,10 @@ def find_in_nested_dict(d: dict, value, key='id'):
 class Redan():
     token = 'zAnepAR9'
     base_url = 'https://opt.redandv.ru/export/api/json'
+    base_xml_url = 'https://opt.redandv.ru/export/api/xml'
     cat_url = f'{base_url}/category/?key={token}'
     prod_url = f'{base_url}/product/?op=stock&key={token}'
+    content_url = f'{base_url}/product/?op=content&key={token}'
     img_url = f'{base_url}/image/?op=item&key={token}&id='
     base_img_path = 'images/'
 
@@ -106,6 +104,8 @@ class Redan():
     state = -1
     products = []
     ctl = []
+    content = {}
+    content_ids = []
 
     def __init__(self):
         self.state = self.init_categories()
@@ -154,35 +154,36 @@ class Redan():
             return -1
 
     def get_products(self):
+        self.get_content()
+        print(f'Processing step 2 of 2...')
         r = requests.get(self.prod_url)
         try:
             js = r.json()['stock']
             for prod in js:
                 if prod.get('category_id') in self.ctl:
+                    if prod.get('id') in self.content_ids:
+                        prod['image'] = self.content.get(prod.get('id')).get('url')
                     self.products.append(prod)
             return 1
         except:
             return -1
 
-    def check_img(self,url):
+    def get_content(self):
+        print(f'Processing step 1 of 2...')
+        r = requests.get(f'{self.content_url}')
         try:
-            r = requests.get(url)
-            b = r.content
-            try:
-                err = r.json()['error']
-                print(f'for {product.get("id")} : {err}')
-                img = ''
-                return img
-            except:
-                pass
-            # print(b)
-            if len(b) > 0:
-                if b[:6] != b'<html>':
-                    print(f'Load image for {product["id"]}')
-                    img = url
+            js = r.json()['content']
+            for prod in js:
+                if prod.get('category_id') in self.ctl:
+                    if prod.get('images', None):
+                        self.content_ids.append(prod.get('id'))
+                        self.content.update({prod.get('id'): prod.get('images')[0]})
+            # with open('cont.json','w', encoding='utf-8') as f:
+            #     f.write(json.dumps(self.content, ensure_ascii=True, indent=2))
+            return 1
         except Exception as e:
-            img = ''
-        return url
+            print(e)
+            return -1
 
     def make_csvs(self, msk='msk.csv', chab='chab.csv'):
         mskf = open(msk, mode="w", encoding='utf-8-sig')
@@ -230,8 +231,6 @@ class Redan():
                 if pr.get('type') == 'purchase':
                     price = pr['price']
 
-            img = self.check_img(f'{self.base_url}/image/?op=item&id={product.get("id")}&key={self.token}')
-
             msk_writer.writerow({
                 'Артикул(1)': product.get('sku'),
                 'Наименование(2)': product.get('name'),
@@ -245,7 +244,7 @@ class Redan():
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
-                'Изображение':img
+                'Изображение': product.get('image', '')
             })
             chab_writer.writerow({
                 'Артикул(1)': product.get('sku'),
@@ -260,44 +259,14 @@ class Redan():
                 'Уцененный товар': '',
                 'Авиадоставка': '',
                 'Товар в пути': '',
-                'Изображение':img
+                'Изображение': product.get('image', '')
             })
         mskf.close()
         chabf.close()
 
-    def get_images(self):
-        for product in self.products:
-            if product.get('category_id') in self.ctl:
-                try:
-                    r = requests.get(f'{self.base_url}/image/?op=item&id={product.get("id")}&key={self.token}')
-                    b = r.content
-                    try:
-                        err = r.json()['error']
-                        print(f'for {product.get("id")} : {err}')
-                        continue
-                    except:
-                        pass
-                    # print(b)
-                    if len(b) > 0:
-                        if b[:6] != b'<html>':
-                            print(f'Load image for {product["id"]}')
-                            with open(self.base_img_path + product.get('sku') + '@' + product.get('id') + '.jpg',
-                                      'wb') as f:
-                                f.write(b)
-                except Exception as e:
-                    print(e)
-
 
 if __name__ == '__main__':
-    # img_path = Path('images')
-    # img_path.mkdir(exist_ok=True)
     rdv = Redan()
     if rdv.state > -1:
         if rdv.get_products() > 0:
-            skulist = []
-            for product in rdv.products:
-                skulist.append(product.get('sku') + '@' + product.get('id'))
-            newlist = list(set(skulist))
-            print(f'{len(skulist)} -> {len(newlist)}')
             rdv.make_csvs()
-            # rdv.get_images()
