@@ -93,7 +93,7 @@ def find_in_nested_dict(d: dict, value, key='id'):
 
 
 class Redan():
-    token = 'zAnepAR9'
+    token = '<token>'
     base_url = 'https://opt.redandv.ru/export/api/json'
     base_xml_url = 'https://opt.redandv.ru/export/api/xml'
     cat_url = f'{base_url}/category/?key={token}'
